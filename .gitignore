@@ -1,3 +1,5 @@
 *.local
 *.identcache
 *.stat
+Debug/
+__history/
