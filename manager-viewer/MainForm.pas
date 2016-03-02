@@ -12,12 +12,13 @@ uses
   Aurelius.Engine.DatabaseManager,
   Aurelius.Drivers.Interfaces,
   Aurelius.Commands.Listeners,
+  Aurelius.Mapping.Attributes,
   ManagerViewerController,
   SQLiteConnectionModule, System.Actions, Vcl.ActnList, Vcl.ExtCtrls,
-  Vcl.ComCtrls;
+  Vcl.ComCtrls, Vcl.Menus;
 
 type
-  TForm3 = class(TForm, ICommandExecutionListener)
+  TfmMain = class(TForm, ICommandExecutionListener)
     dsCustomer: TDataSource;
     adsCustomer: TAureliusDataset;
     PageControl1: TPageControl;
@@ -72,6 +73,20 @@ type
     Splitter3: TSplitter;
     lbCommands: TListBox;
     acClear: TAction;
+    PopupMenu1: TPopupMenu;
+    Save1: TMenuItem;
+    Update1: TMenuItem;
+    Merge1: TMenuItem;
+    Refresh1: TMenuItem;
+    Remove1: TMenuItem;
+    SaveOrUpdate1: TMenuItem;
+    Evict1: TMenuItem;
+    GroupBox1: TGroupBox;
+    chSaveUpdate: TCheckBox;
+    chMerge: TCheckBox;
+    chEvict: TCheckBox;
+    chRefresh: TCheckBox;
+    chRemove: TCheckBox;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btCreateCustomerClick(Sender: TObject);
@@ -93,10 +108,16 @@ type
     procedure btRefreshDatasetsClick(Sender: TObject);
     procedure btFindAllClick(Sender: TObject);
     procedure acClearExecute(Sender: TObject);
+    procedure chSaveUpdateClick(Sender: TObject);
+    procedure chMergeClick(Sender: TObject);
+    procedure chEvictClick(Sender: TObject);
+    procedure chRefreshClick(Sender: TObject);
+    procedure chRemoveClick(Sender: TObject);
+  private
+    procedure ToggleCascade(CascadeType: TCascadeType; Include: Boolean);
   private
     { ICommandExecutionListener }
     procedure ExecutingCommand(SQL: string; Params: TEnumerable<TDBParam>);
-    procedure RemoveManagedObjectsFromTransientList;
   private
     Connection: IDBConnection;
     Manager: TObjectManager;
@@ -106,25 +127,31 @@ type
   end;
 
 var
-  Form3: TForm3;
+  fmMain: TfmMain;
 
 implementation
 
 uses
   Aurelius.Criteria.Base,
   Aurelius.Criteria.Linq,
+  Aurelius.Mapping.Explorer,
+  Aurelius.Mapping.Metadata,
   CustomerForm, CountryForm;
 
 {$R *.dfm}
 
-procedure TForm3.acClearExecute(Sender: TObject);
+procedure TfmMain.acClearExecute(Sender: TObject);
 begin
-  RemoveManagedObjectsFromTransientList;
+  // Remove objects from list that are not in manager,
+  // so there are not references to destroyed objects
+  // move this to the controller, later
+  Controller.RemoveManagedObjectsFromTransientList;
+
   Manager.Clear;
   Controller.UpdateDiagrams;
 end;
 
-procedure TForm3.acEvictExecute(Sender: TObject);
+procedure TfmMain.acEvictExecute(Sender: TObject);
 begin
   // Add Manager objects to the list so when evicted, they will be there
   Controller.AddManagedObjectsToTransientList;
@@ -133,69 +160,73 @@ begin
   Controller.UpdateDiagrams;
 end;
 
-procedure TForm3.acFlushExecute(Sender: TObject);
+procedure TfmMain.acFlushExecute(Sender: TObject);
 begin
   Manager.Flush;
   Controller.UpdateDiagrams;
 end;
 
-procedure TForm3.acMergeExecute(Sender: TObject);
+procedure TfmMain.acMergeExecute(Sender: TObject);
 begin
   Manager.Merge<TObject>(Controller.Selected);
   Controller.UpdateDiagrams;
 end;
 
-procedure TForm3.acRefreshExecute(Sender: TObject);
+procedure TfmMain.acRefreshExecute(Sender: TObject);
 begin
   Manager.Refresh(Controller.Selected);
   Controller.UpdateDiagrams;
 end;
 
-procedure TForm3.acRemoveExecute(Sender: TObject);
+procedure TfmMain.acRemoveExecute(Sender: TObject);
 begin
-  RemoveManagedObjectsFromTransientList;
+  // Remove objects from list that are not in manager,
+  // so there are not references to destroyed objects
+  // move this to the controller, later
+  Controller.RemoveManagedObjectsFromTransientList;
+
   Manager.Remove(Controller.Selected);
   Controller.UpdateDiagrams;
 end;
 
-procedure TForm3.acSaveExecute(Sender: TObject);
+procedure TfmMain.acSaveExecute(Sender: TObject);
 begin
   Manager.Save(Controller.Selected);
   Controller.UpdateDiagrams;
 end;
 
-procedure TForm3.acSaveOrUpdateExecute(Sender: TObject);
+procedure TfmMain.acSaveOrUpdateExecute(Sender: TObject);
 begin
   Manager.SaveOrUpdate(Controller.Selected);
   Controller.UpdateDiagrams;
 end;
 
-procedure TForm3.acUpdateExecute(Sender: TObject);
+procedure TfmMain.acUpdateExecute(Sender: TObject);
 begin
   Manager.Update(Controller.Selected);
   Controller.UpdateDiagrams;
 end;
 
-procedure TForm3.btCreateCountryClick(Sender: TObject);
+procedure TfmMain.btCreateCountryClick(Sender: TObject);
 begin
   Controller.Objects.Add(TCountry.Create);
   Controller.UpdateDiagrams;
 end;
 
-procedure TForm3.btCreateCustomerClick(Sender: TObject);
+procedure TfmMain.btCreateCustomerClick(Sender: TObject);
 begin
   Controller.Objects.Add(TCustomer.Create);
   Controller.UpdateDiagrams;
 end;
 
-procedure TForm3.btFindAllClick(Sender: TObject);
+procedure TfmMain.btFindAllClick(Sender: TObject);
 begin
   Manager.Find<TCustomer>.List.Free;
   Manager.Find<TCountry>.List.Free;
   Controller.UpdateDiagrams;
 end;
 
-procedure TForm3.btRefreshDatasetsClick(Sender: TObject);
+procedure TfmMain.btRefreshDatasetsClick(Sender: TObject);
 begin
   adsCountry.Close;
   adsCustomer.Close;
@@ -210,19 +241,44 @@ begin
   adsCustomer.Open;
 end;
 
-procedure TForm3.acFindCustomersByCountryClick(Sender: TObject);
+procedure TfmMain.chEvictClick(Sender: TObject);
+begin
+  ToggleCascade(TCascadeType.Evict, chEvict.Checked);
+end;
+
+procedure TfmMain.chMergeClick(Sender: TObject);
+begin
+  ToggleCascade(TCascadeType.Merge, chMerge.Checked);
+end;
+
+procedure TfmMain.chRefreshClick(Sender: TObject);
+begin
+  ToggleCascade(TCascadeType.Refresh, chRefresh.Checked);
+end;
+
+procedure TfmMain.chRemoveClick(Sender: TObject);
+begin
+  ToggleCascade(TCascadeType.Remove, chRemove.Checked);
+end;
+
+procedure TfmMain.chSaveUpdateClick(Sender: TObject);
+begin
+  ToggleCascade(TCascadeType.SaveUpdate, chSaveUpdate.Checked);
+end;
+
+procedure TfmMain.acFindCustomersByCountryClick(Sender: TObject);
 var
   Criteria: TCriteria;
 begin
   Criteria := Manager.Find<TCustomer>;
   if edLike.Text <> '' then
-    Criteria.Add(TLinq.Like('Name', '%' + edLike.Text + '%'));
+    Criteria.Add(TLinq.Contains('Name', edLike.Text));
 
   Criteria.List<TCustomer>.Free;
   Controller.UpdateDiagrams;
 end;
 
-procedure TForm3.DiagramTransientDControlDblClick(Sender: TObject;
+procedure TfmMain.DiagramTransientDControlDblClick(Sender: TObject;
   ADControl: TDiagramControl);
 begin
   if ADControl.Obj is TCustomer then
@@ -238,55 +294,60 @@ begin
   end;
 end;
 
-procedure TForm3.DiagramTransientSelectDControl(Sender: TObject;
+procedure TfmMain.DiagramTransientSelectDControl(Sender: TObject;
   ADControl: TDiagramControl);
 begin
+  // Make sure only only one object is selected considering the two diagrams
   if ADControl.Diagram = DiagramTransient then
     DiagramManager.UnselectAll
   else
     DiagramTransient.UnselectAll;
 end;
 
-procedure TForm3.EntityActionUpdate(Sender: TObject);
+procedure TfmMain.EntityActionUpdate(Sender: TObject);
 begin
   TAction(Sender).Enabled := (Controller.Selected <> nil);
 end;
 
-procedure TForm3.ExecutingCommand(SQL: string; Params: TEnumerable<TDBParam>);
+procedure TfmMain.ExecutingCommand(SQL: string; Params: TEnumerable<TDBParam>);
 var
   P: TDBParam;
   ValueAsString: string;
 begin
   // quick and dirty sql beautifier
-  for P in Params do
-  begin
-    if P.ParamValue = NULL then
-      ValueAsString := 'NULL'
-    else
-      ValueAsString := '"' + VarToStr(P.ParamValue) + '"';
-    SQL := SQL + '; ' + P.ParamName + ' = ' + ValueAsString;
-  end;
-
+  if Params <> nil then
+    for P in Params do
+    begin
+      if P.ParamValue = NULL then
+        ValueAsString := 'NULL'
+      else
+        ValueAsString := '"' + VarToStr(P.ParamValue) + '"';
+      SQL := SQL + '; ' + P.ParamName + ' = ' + ValueAsString;
+    end;
   SQL := StringReplace(SQL, #13, ' ', [rfReplaceAll]);
   SQL := StringReplace(SQL, #10, ' ', [rfReplaceAll]);
   SQL := StringReplace(SQL, '  ', ' ', [rfReplaceAll]);
   SQL := StringReplace(SQL, '  ', ' ', [rfReplaceAll]);
+
   lbCommands.ItemIndex := lbCommands.Items.Add(SQL);
 end;
 
-procedure TForm3.RemoveManagedObjectsFromTransientList;
+procedure TfmMain.ToggleCascade(CascadeType: TCascadeType; Include: Boolean);
 var
-  I: Integer;
+  A: TAssociation;
 begin
-  // Remove objects from list that are not in manager,
-  // so there are not references to destroyed objects
-  // move this to the controller, later
-  for I := Controller.Objects.Count - 1 downto 0 do
-    if Manager.IsAttached(Controller.Objects[I]) then
-      Controller.Objects.Delete(I);
+  // This is just for learning purposes. Be careful when changing mapping after application is
+  // already up and running with managers and entities floating around
+  A := TMappingExplorer.Default.GetAssociationByPropertyName(TCustomer, 'FCountry');
+  if Include then
+    A.Cascade := A.Cascade + [CascadeType]
+  else
+    A.Cascade := A.Cascade - [CascadeType];
 end;
 
-procedure TForm3.FormCreate(Sender: TObject);
+procedure TfmMain.FormCreate(Sender: TObject);
+var
+  A: TAssociation;
 begin
   // create the database connection and create missing tables and columns
   Connection := TSQLiteConnection.CreateConnection;
@@ -316,9 +377,19 @@ begin
         Block.Color := clCream;
       Block.SelColor := Block.Color;
     end;
+
+  // Check/Uncheck the cascade checkboxes according to the cascade status
+  // Just in case you change the mapping of TCustomer.FCountry in Entities unit
+  // so the check boxes will automatically reflect that change
+  A := TMappingExplorer.Default.GetAssociationByPropertyName(TCustomer, 'FCountry');
+  chSaveUpdate.Checked := TCascadeType.SaveUpdate in A.Cascade;
+  chMerge.Checked := TCascadeType.Merge in A.Cascade;
+  chEvict.Checked := TCascadeType.Evict in A.Cascade;
+  chRefresh.Checked := TCascadeType.Refresh in A.Cascade;
+  chRemove.Checked := TCascadeType.Remove in A.Cascade;
 end;
 
-procedure TForm3.FormDestroy(Sender: TObject);
+procedure TfmMain.FormDestroy(Sender: TObject);
 begin
   Controller.Free;
   adsCustomer.Close;

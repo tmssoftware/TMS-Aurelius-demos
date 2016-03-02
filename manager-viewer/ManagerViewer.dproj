@@ -96,7 +96,7 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="MainForm.pas">
-            <Form>Form3</Form>
+            <Form>fmMain</Form>
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="SQLiteConnectionModule.pas">

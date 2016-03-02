@@ -32,4 +32,5 @@ implementation
 
 initialization
   RegisterEntity(TCustomer);
+  RegisterEntity(TCountry);
 end.

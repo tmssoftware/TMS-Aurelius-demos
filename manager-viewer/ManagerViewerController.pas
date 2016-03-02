@@ -13,7 +13,7 @@ type
     FDiagramTransient: TatDiagram;
     FDiagramManager: TatDiagram;
     FManager: TObjectManager;
-    FObjects: TList<TObject>;
+    FObjects: TObjectList<TObject>;
     FOnBlockCreated: TProc<TCustomDiagramBlock>;
     function SelectedInDiagram(Diagram: TatDiagram): TObject;
     function GetSelected: TObject;
@@ -21,16 +21,18 @@ type
     function CreateBlock(Diagram: TatDiagram; Obj: TObject; RefBlock: TUMLObjectBlock): TUMLObjectBlock;
     procedure UpdateBlocks(Diagram: TatDiagram);
     procedure UpdateBlock(Block: TUMLObjectBlock);
+    function GetObjects: TList<TObject>;
   public
     constructor Create(AManager: TObjectManager; ADiagramTransient, ADiagramManager: TatDiagram);
     destructor Destroy; override;
-    property Objects: TList<TObject> read FObjects;
+    property Objects: TList<TObject> read GetObjects;
     property DiagramTransient: TatDiagram read FDiagramTransient;
     property DiagramManager: TatDiagram read FDiagramManager;
     property Manager: TObjectManager read FManager;
     property Selected: TObject read GetSelected;
   public
     procedure AddManagedObjectsToTransientList;
+    procedure RemoveManagedObjectsFromTransientList;
     procedure UpdateDiagrams;
     property OnBlockCreated: TProc<TCustomDiagramBlock> read FOnBlockCreated write FOnBlockCreated;
   end;
@@ -73,7 +75,7 @@ begin
   FManager := AManager;
   FDiagramTransient := ADiagramTransient;
   FDiagramManager := ADiagramManager;
-  FObjects := TList<TObject>.Create;
+  FObjects := TObjectList<TObject>.Create(False);
 end;
 
 function TManagerViewerController.CreateBlock(Diagram: TatDiagram; Obj: TObject;
@@ -100,6 +102,9 @@ begin
   Block.Diagram := Diagram;
   Block.Left := _Margin;
   Block.Top := _Margin;
+
+  // When a block is "moved" from one diagram to another (evict, save, etc.)
+  // try to keep block in the same position as it was in the other diagram
   if RefBlock <> nil then
   begin
     Block.Left := RefBlock.Left;
@@ -126,7 +131,8 @@ end;
 
 destructor TManagerViewerController.Destroy;
 begin
-  TIntManager(Manager).DestroyTransients(FObjects);
+  RemoveManagedObjectsFromTransientList;
+  FObjects.OwnsObjects := True; // destroy remaining objects
   FObjects.Free;
   inherited;
 end;
@@ -137,19 +143,31 @@ var
   I: Integer;
 begin
   for I := 0 to Diagram.BlockCount - 1 do
-  begin
     if (Diagram.Blocks[I].Obj = Obj) and (Diagram.Blocks[I] is TUMLObjectBlock) then
       Exit(TUMLObjectBlock(Diagram.Blocks[I]));
-  end;
   Result := nil;
 end;
 
+
+function TManagerViewerController.GetObjects: TList<TObject>;
+begin
+  Result := FObjects;
+end;
 
 function TManagerViewerController.GetSelected: TObject;
 begin
   Result := SelectedInDiagram(DiagramTransient);
   if Result = nil then
     Result := SelectedInDiagram(DiagramManager);
+end;
+
+procedure TManagerViewerController.RemoveManagedObjectsFromTransientList;
+var
+  I: Integer;
+begin
+  for I := Objects.Count - 1 downto 0 do
+    if Manager.IsAttached(Objects[I]) then
+      Objects.Delete(I);
 end;
 
 function TManagerViewerController.SelectedInDiagram(
@@ -181,7 +199,7 @@ begin
   for Info in E.GetClassVisibleMembers(Obj.ClassType, True) do
   begin
     Attr := Block.Attributes.Add;
-    if Info.MemberClass = nil then // it's an object
+    if Info.MemberClass = nil then // it's a primitive type, not an object
       Value := TUtils.VariantToString(E.ValueToVariant(E.GetMemberValue(Obj, Info), Info))
     else
     begin
@@ -191,10 +209,9 @@ begin
 
     Attr.CustomText := Format('%s = %s', [Info.MemberName, Value]);
   end;
+
   for J := 0 to Block.TextCells.Count - 1 do
-  begin
     Block.TextCells[J].CellFrame.AutoFrameMargin := 5;
-  end;
 end;
 
 procedure TManagerViewerController.UpdateBlocks(Diagram: TatDiagram);
@@ -222,11 +239,12 @@ begin
 
   // Create missing blocks in transient diagram
   for Obj in Objects do
-  begin
-    Block := FindBlock(DiagramTransient, Obj);
-    if Block = nil then
-      CreateBlock(DiagramTransient, Obj, FindBlock(DiagramManager, Obj));
-  end;
+    if not Manager.IsAttached(Obj) then
+    begin
+      Block := FindBlock(DiagramTransient, Obj);
+      if Block = nil then
+        CreateBlock(DiagramTransient, Obj, FindBlock(DiagramManager, Obj));
+    end;
 
   // Remove unused blocks from transient diagram
   for I := DiagramTransient.BlockCount - 1 downto 0 do

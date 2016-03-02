@@ -1,4 +1,4 @@
-object Form3: TForm3
+object fmMain: TfmMain
   Left = 0
   Top = 0
   Caption = 'TMS Aurelius - Using TObjectManager'
@@ -27,11 +27,12 @@ object Form3: TForm3
       Caption = 'Object Manager'
       object Splitter1: TSplitter
         Left = 409
-        Top = 66
+        Top = 65
         Width = 4
-        Height = 362
+        Height = 363
         Color = clSilver
         ParentColor = False
+        ExplicitTop = 66
         ExplicitHeight = 409
       end
       object Splitter3: TSplitter
@@ -51,12 +52,10 @@ object Form3: TForm3
         Left = 0
         Top = 0
         Width = 944
-        Height = 66
+        Height = 65
         Align = alTop
         BevelOuter = bvNone
         TabOrder = 0
-        ExplicitLeft = 168
-        ExplicitTop = 3
         object btCreateCustomer: TButton
           Left = 4
           Top = 4
@@ -140,8 +139,8 @@ object Form3: TForm3
           TabOrder = 9
         end
         object acFindCustomersByCountry: TButton
-          Left = 422
-          Top = 3
+          Left = 310
+          Top = 4
           Width = 224
           Height = 25
           Caption = 'Find Customers With Name Containing:'
@@ -149,9 +148,9 @@ object Form3: TForm3
           OnClick = acFindCustomersByCountryClick
         end
         object edLike: TEdit
-          Left = 652
-          Top = 5
-          Width = 121
+          Left = 540
+          Top = 6
+          Width = 91
           Height = 21
           TabOrder = 11
         end
@@ -164,30 +163,84 @@ object Form3: TForm3
           TabOrder = 12
         end
         object btFindAll: TButton
-          Left = 340
-          Top = 3
+          Left = 228
+          Top = 4
           Width = 79
           Height = 25
           Caption = 'Find All '
           TabOrder = 13
           OnClick = btFindAllClick
         end
+        object GroupBox1: TGroupBox
+          Left = 637
+          Top = 0
+          Width = 260
+          Height = 60
+          Caption = 'Cascades'
+          TabOrder = 14
+          object chSaveUpdate: TCheckBox
+            Left = 13
+            Top = 18
+            Width = 97
+            Height = 17
+            Caption = 'SaveUpdate'
+            TabOrder = 0
+            OnClick = chSaveUpdateClick
+          end
+          object chMerge: TCheckBox
+            Left = 13
+            Top = 37
+            Width = 97
+            Height = 17
+            Caption = 'Merge'
+            TabOrder = 1
+            OnClick = chMergeClick
+          end
+          object chEvict: TCheckBox
+            Left = 102
+            Top = 18
+            Width = 97
+            Height = 17
+            Caption = 'Evict'
+            TabOrder = 2
+            OnClick = chEvictClick
+          end
+          object chRefresh: TCheckBox
+            Left = 102
+            Top = 37
+            Width = 97
+            Height = 17
+            Caption = 'Refresh'
+            TabOrder = 3
+            OnClick = chRefreshClick
+          end
+          object chRemove: TCheckBox
+            Left = 183
+            Top = 18
+            Width = 72
+            Height = 17
+            Caption = 'Remove'
+            TabOrder = 4
+            OnClick = chRemoveClick
+          end
+        end
       end
       object Panel3: TPanel
         Left = 0
-        Top = 66
+        Top = 65
         Width = 409
-        Height = 362
+        Height = 363
         Align = alLeft
         BevelOuter = bvNone
         Caption = 'Panel3'
         TabOrder = 1
-        ExplicitHeight = 409
+        ExplicitTop = 66
+        ExplicitHeight = 362
         object DiagramTransient: TatDiagram
           Left = 0
           Top = 21
           Width = 409
-          Height = 341
+          Height = 342
           NettoExportOffset = 3
           AutomaticNodes = False
           AutoScroll = True
@@ -277,8 +330,10 @@ object Form3: TForm3
           Anchors = [akLeft, akTop, akRight, akBottom]
           BiDiMode = bdLeftToRight
           BorderStyle = bsNone
+          PopupMenu = PopupMenu1
           ShowHint = False
           TabOrder = 0
+          ExplicitHeight = 310
         end
         object Panel5: TPanel
           Left = 0
@@ -301,21 +356,19 @@ object Form3: TForm3
       end
       object Panel4: TPanel
         Left = 413
-        Top = 66
+        Top = 65
         Width = 531
-        Height = 362
+        Height = 363
         Align = alClient
         BevelOuter = bvNone
         TabOrder = 2
-        ExplicitLeft = -55
-        ExplicitTop = 65
-        ExplicitWidth = 185
-        ExplicitHeight = 409
+        ExplicitTop = 66
+        ExplicitHeight = 362
         object DiagramManager: TatDiagram
           Left = 0
           Top = 21
           Width = 531
-          Height = 341
+          Height = 342
           NettoExportOffset = 3
           AutomaticNodes = False
           AutoScroll = True
@@ -405,8 +458,10 @@ object Form3: TForm3
           Anchors = [akLeft, akTop, akRight, akBottom]
           BiDiMode = bdLeftToRight
           BorderStyle = bsNone
+          PopupMenu = PopupMenu1
           ShowHint = False
           TabOrder = 0
+          ExplicitHeight = 310
         end
         object Panel6: TPanel
           Left = 0
@@ -425,7 +480,6 @@ object Form3: TForm3
           ParentBackground = False
           ParentFont = False
           TabOrder = 1
-          ExplicitWidth = 532
         end
       end
       object Panel7: TPanel
@@ -609,6 +663,31 @@ object Form3: TForm3
       DisplayWidth = 20
       FieldName = 'Name'
       Size = 255
+    end
+  end
+  object PopupMenu1: TPopupMenu
+    Left = 304
+    Top = 272
+    object Save1: TMenuItem
+      Action = acSave
+    end
+    object Update1: TMenuItem
+      Action = acUpdate
+    end
+    object Merge1: TMenuItem
+      Action = acMerge
+    end
+    object Refresh1: TMenuItem
+      Action = acRefresh
+    end
+    object Remove1: TMenuItem
+      Action = acRemove
+    end
+    object SaveOrUpdate1: TMenuItem
+      Action = acSaveOrUpdate
+    end
+    object Evict1: TMenuItem
+      Action = acEvict
     end
   end
 end
